@@ -877,6 +877,83 @@ namespace Microsoft.AspNetCore.Identity
         }
 
         /// <summary>
+        /// Generates the phone password reset token for the specified <paramref name="user"/>.
+        /// </summary>
+        /// <param name="user">The user to generate the phone number password reset token for.</param>
+        /// <param name="newPassword">New password of the user after reset.</param>
+        /// <returns>
+        /// The <see cref="Task"/> that represents the asynchronous operation, the phone number password reset token.
+        /// </returns>
+        public virtual async Task<string> GeneratePasswordResetPhoneTokenAsync(TUser user, string newPassword)
+        {
+            ThrowIfDisposed();
+            return Rfc6238AuthenticationService.GenerateCode(
+                await CreateSecurityTokenAsync(user), newPassword)
+                    .ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Confirms reset password by phone for the specified <paramref name="user"/> if the specified
+        /// confirm <paramref name="token"/> is valid.
+        /// </summary>
+        /// <param name="user">The user whose password to reset.</param>
+        /// <param name="token">The phone password reset confirmation token to validate.</param>
+        /// <param name="newPassword">New password of the user after reset.</param>
+        /// <returns>
+        /// The <see cref="Task"/> that represents the asynchronous operation, containing the <see cref="IdentityResult"/>
+        /// of the operation.
+        /// </returns>
+        public virtual async Task<IdentityResult> ResetPasswordByPhoneAsync(TUser user, string token, string newPassword)
+        {
+            ThrowIfDisposed();
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
+
+            // Make sure the token is valid and the stamp matches
+            if (!await VerifyPhoneResetPasswordTokenAsync(user, token, newPassword))
+            {
+                return IdentityResult.Failed(ErrorDescriber.InvalidToken());
+            }
+            var passwordStore = GetPasswordStore();
+            var result = await UpdatePasswordHash(passwordStore, user, newPassword);
+            if (!result.Succeeded)
+            {
+                return result;
+            }
+            return await UpdateUserAsync(user);
+        }
+
+        /// <summary>
+        /// Returns a flag indicating whether the specified <paramref name="user"/>'s phone password reset verification
+        /// token is valid for user password reset.
+        /// </summary>
+        /// <param name="user">The user to validate the token against.</param>
+        /// <param name="token">The telephone number confirm token to validate.</param>
+        /// <param name="newPassword">New password of the user after reset.</param>
+        /// <returns>
+        /// The <see cref="Task"/> that represents the asynchronous operation, returning true if the <paramref name="token"/>
+        /// is valid, otherwise false.
+        /// </returns>
+        public virtual async Task<bool> VerifyPhoneResetPasswordTokenAsync(TUser user, string token, string newPassword)
+        {
+            ThrowIfDisposed();
+
+            var securityToken = await CreateSecurityTokenAsync(user);
+            int code;
+            if (securityToken != null && Int32.TryParse(token, out code))
+            {
+                if (Rfc6238AuthenticationService.ValidateCode(securityToken, code, newPassword))
+                {
+                    return true;
+                }
+            }
+            Logger.LogWarning(15, "VerifyPhoneResetPasswordTokenAsync() failed for user {userId}.", await GetUserIdAsync(user));
+            return false;
+        }
+
+        /// <summary>
         /// Retrieves the user associated with the specified external login provider and login provider key..
         /// </summary>
         /// <param name="loginProvider">The login provider who provided the <paramref name="providerKey"/>.</param>
@@ -1546,6 +1623,78 @@ namespace Microsoft.AspNetCore.Identity
             await store.SetPhoneNumberConfirmedAsync(user, true, CancellationToken);
             await UpdateSecurityStampInternal(user);
             return await UpdateUserAsync(user);
+        }
+
+        /// <summary>
+        ///  Generates the telephone number confirmation token for the specified <paramref name="user"/>.
+        /// </summary>
+        /// <param name="user">The user to generate the phone number confirmation token for.</param>
+        /// <param name="phoneNumber">The user phone number the validation token should be sent to.</param>
+        /// <returns>
+        /// The <see cref="Task"/> that represents the asynchronous operation, the phone number password confirm token.
+        /// </returns>
+        public virtual async Task<string> GeneratePhoneConfirmationTokenAsync(TUser user, string phoneNumber)
+        {
+            ThrowIfDisposed();
+            return Rfc6238AuthenticationService.GenerateCode(
+                await CreateSecurityTokenAsync(user), phoneNumber)
+                    .ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Confirms the phone number for the specified <paramref name="user"/> if the specified
+        /// confirm <paramref name="token"/> is valid.
+        /// </summary>
+        /// <param name="user">The user whose phone number to confirm.</param>
+        /// <param name="token">The phone number confirmation token to validate.</param>
+        /// <param name="phoneNumber">The user phone number the validation token should be sent to.</param>
+        /// <returns>
+        /// The <see cref="Task"/> that represents the asynchronous operation, containing the <see cref="IdentityResult"/>
+        /// of the operation.
+        /// </returns>
+        public virtual async Task<IdentityResult> ConfirmPhoneNumberAsync(TUser user, string token, string phoneNumber)
+        {
+            ThrowIfDisposed();
+            var store = GetPhoneNumberStore();
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
+
+            if (!await VerifyConfirmPhoneNumberTokenAsync(user, token, phoneNumber))
+            {
+                return IdentityResult.Failed(ErrorDescriber.InvalidToken());
+            }
+            await store.SetPhoneNumberConfirmedAsync(user, true, CancellationToken);
+            return await UpdateUserAsync(user);
+        }
+
+        /// <summary>
+        /// Returns a flag indicating whether the specified <paramref name="user"/>'s phone number confirm verification
+        /// token is valid for user number.
+        /// </summary>
+        /// <param name="user">The user to validate the token against.</param>
+        /// <param name="token">The telephone number confirm token to validate.</param>
+        /// <param name="phoneNumber">The user phone number the validation token should be sent to.</param>
+        /// <returns>
+        /// The <see cref="Task"/> that represents the asynchronous operation, returning true if the <paramref name="token"/>
+        /// is valid, otherwise false.
+        /// </returns>
+        public virtual async Task<bool> VerifyConfirmPhoneNumberTokenAsync(TUser user, string token, string phoneNumber)
+        {
+            ThrowIfDisposed();
+
+            var securityToken = await CreateSecurityTokenAsync(user);
+            int code;
+            if (securityToken != null && Int32.TryParse(token, out code))
+            {
+                if (Rfc6238AuthenticationService.ValidateCode(securityToken, code, phoneNumber))
+                {
+                    return true;
+                }
+            }
+            Logger.LogWarning(16, "VerifyConfirmPhoneNumberTokenAsync() failed for user {userId}.", await GetUserIdAsync(user));
+            return false;
         }
 
         /// <summary>

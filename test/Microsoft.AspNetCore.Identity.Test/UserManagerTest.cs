@@ -1035,9 +1035,17 @@ namespace Microsoft.AspNetCore.Identity.Test
             await Assert.ThrowsAsync<ArgumentNullException>("user",
                 async () => await manager.ResetPasswordAsync(null, null, null));
             await Assert.ThrowsAsync<ArgumentNullException>("user",
+                async () => await manager.GeneratePasswordResetPhoneTokenAsync(null, null));
+            await Assert.ThrowsAsync<ArgumentNullException>("user",
+                async () => await manager.ResetPasswordByPhoneAsync(null, null, null));
+            await Assert.ThrowsAsync<ArgumentNullException>("user",
+                async () => await manager.VerifyPhoneResetPasswordTokenAsync(null, null, null));
+            await Assert.ThrowsAsync<ArgumentNullException>("user",
                 async () => await manager.IsEmailConfirmedAsync(null));
             await Assert.ThrowsAsync<ArgumentNullException>("user",
                 async () => await manager.GenerateEmailConfirmationTokenAsync(null));
+            await Assert.ThrowsAsync<ArgumentNullException>("user",
+                async () => await manager.GeneratePhoneConfirmationTokenAsync(null, null));
             await Assert.ThrowsAsync<ArgumentNullException>("user",
                 async () => await manager.ConfirmEmailAsync(null, null));
             await Assert.ThrowsAsync<ArgumentNullException>("user",
@@ -1050,6 +1058,10 @@ namespace Microsoft.AspNetCore.Identity.Test
                 async () => await manager.ChangePhoneNumberAsync(null, null, null));
             await Assert.ThrowsAsync<ArgumentNullException>("user",
                 async () => await manager.VerifyChangePhoneNumberTokenAsync(null, null, null));
+            await Assert.ThrowsAsync<ArgumentNullException>("user",
+                async () => await manager.ConfirmPhoneNumberAsync(null, null, null));
+            await Assert.ThrowsAsync<ArgumentNullException>("user",
+                async () => await manager.VerifyConfirmPhoneNumberTokenAsync(null, null, null));
             await Assert.ThrowsAsync<ArgumentNullException>("user",
                 async () => await manager.GetPhoneNumberAsync(null));
             await Assert.ThrowsAsync<ArgumentNullException>("user",
